@@ -6,6 +6,13 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(blessed);
 
+use Exporter;
+use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+
+@ISA = qw(Exporter);
+
+@EXPORT = qw(fromSchemaDB toSchemaDB);
+
 #create constructor
 sub new {
   #new receives the string on the left side of the arrow operator in the call as the first parameter e.g Person->new becomes new("Person")
@@ -14,14 +21,16 @@ sub new {
   my $self = {};
   #add parameter checking directly in constructor
   $self->{name} = $args{name} if defined $args{name} and $args{name} ne "";
+  $self->{email} = createEmail($args{name}) if defined $args{name} and $args{name} ne "";
+  $self->{username} = generateUsername($args{name}) if defined $args{name} and $args{name} ne "";
   $self->{startDate} = $args{startDate} if defined $args{startDate} and blessed $args{startDate} and $args{startDate}->isa('DateTime');
   $self->{position} = $args{position} if defined $args{position} and blessed $args{position} and $args{position}->isa('JobRole');
   $self->{phone} = $args{phone} if defined $args{phone} and $args{phone} =~ m/^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/;
+  $self->{salary} = $args{salary} if defined $args{salary};
   #link the instance to the class so Perl knows its class
   bless $self, $class;
   #hack to add email and username after blessing
-  $self->{email} = createEmail($self);
-  $self->{username} = generateUsername($self);
+  
   #return object (which is basically a hash reference)
   return $self;
 }
@@ -35,6 +44,8 @@ sub name {
   #if value is specified, act as setter
   if (@_ == 2) {
     $self->{name} = $value;
+    $self->{username} = generateUsername($self) if $self->username ne generateUsername($self) or $self->username eq "";
+    $self->{email} = createEmail($self) if $self->email ne createEmail($self) or $self->email eq "";
   }
   return $self->{name};
 }
@@ -108,8 +119,8 @@ sub title {
 # Helper functions
 ##########################
 sub getNames {
-  my ($self, $option) = @_;
-  my @arr = split(/ /,$self->{name});
+  my ($name, $option) = @_;
+  my @arr = split(/ /,$name);
   my $first = ""; my $middle = ""; my $last = "";
   if(@arr == 2) {
     ($first, $last) = @arr;
@@ -121,16 +132,16 @@ sub getNames {
 }
 
 sub createEmail {
-  my $self = shift;
-  my ($first, $last) = $self->getNames;
+  my $fullName = shift;
+  my ($first, $last) = getNames($fullName);
   my $email = lc($first.".".$last."\@silicon-mobility.com");
 
   return $email;
 }
 
 sub generateUsername {
-  my $self = shift;
-  my ($first, $last) = $self->getNames;
+  my $fullName = shift;
+  my ($first, $last) = getNames($fullName);
   my $uname = lc(substr($first,0,1).$last);
 
   return $uname;
@@ -145,7 +156,7 @@ sub yearOfEntry {
 sub info {
   my $self = shift;
 
-  my $info = "Name: ".$self->name."\nUsername: ".$self->username."\nEmail: ".$self->email."\nEntry Date: ".$self->{startDate}->dmy('/')."\nPosition: ".$self->{position}->title."\n";
+  my $info = "Name: ".$self->name."\nUsername: ".$self->username."\nEmail: ".$self->email."\nEntry Date: ".$self->entryDate->dmy('/')."\nPosition: ".$self->position->title."\n";
 
   return $info;
 }
@@ -162,10 +173,30 @@ sub update {
   # Penser à faire le même chose pour les functions comme ça - new (addEmployee), deleteRecord (deleteEmployee), deleteTable (deleteOrg), createTable(createOrg) etc
 }
 
+sub fromSchemaDB($) {
+  my $dbHash = shift;
+  my $employee = Person->new;
+
+  $employee->{username} = $dbHash->{username};
+  #get full name
+  $employee->{name} = $dbHash->{firstname}." " if defined $dbHash->{firstname};
+  $employee->{name} .= $dbHash->{middlename}." " if defined $dbHash->{middlename}; 
+  $employee->{name} .= $dbHash->{lastname} if defined $dbHash->{lastname};
+  #get phone, position, email
+  $employee->{phone} = $dbHash->{phoneNo} if defined $dbHash->{phoneNo};
+  $employee->{position} = JobRole->new(title => $dbHash->{position}, dept => $dbHash->{department}) if defined $dbHash->{position} and defined $dbHash->{department};
+  $employee->{email} = $dbHash->{email};
+  #get date
+  my @date = split(/\//,$dbHash->{date}) if defined $dbHash->{date};
+  $employee->{startDate} = DateTime->new(year => $date[2], month => $date[1], day => $date[0]);
+
+  return $employee;
+}
+
 sub toSchemaDB {
   my $self = shift;
 
-  my $dbHash = {}; my ($first, $middle, $last) = $self->getNames("all");
+  my $dbHash = {}; my ($first, $middle, $last) = getNames($self->name, "all");
 
   $dbHash->{username} = $self->username;
   $dbHash->{firstname} = $first;

@@ -3,7 +3,6 @@ package JobRole;
 use strict;
 use warnings;
 
-#use Utilities::Enums qw(deptEnum);
 use List::MoreUtils qw(any);
 use Const::Fast;
 
@@ -55,6 +54,10 @@ sub process {
   return $self->{process} if defined $self->{process};
 }
 
-
+sub printDepts {
+  for my $entry (keys(%deptHash)) {
+    print "$entry ";
+  }
+}
 
 1;
