@@ -151,17 +151,32 @@ sub getAllRecords {
 
 sub updateRecord {
   my ($dbHandle, $tableName, $uname, $recordInfo) = @_;
+  my $err = 0;
 
   my @keys = keys(%{$recordInfo});
 
   my $stmt = "UPDATE $tableName SET ";
+  # for my $entry (@keys) {
+  #   $stmt .= $entry." = ".$recordInfo->{$entry}.", ";
+  # }
+  # $stmt =~ s/, $//; #remove trailing comma and space characters
+  # $stmt .= " WHERE username = ".$uname.";";
+  # print "$stmt\n";
   for my $entry (@keys) {
-    $stmt .= $entry." = ".$recordInfo->{$entry}.", ";
+    $stmt .= "$entry=?, ";
   }
-  $stmt =~ s/, $//; #remove trailing comma and space characters
-  $stmt .= " WHERE username = ".$uname.";";
-  print "$stmt\n";
+  $stmt =~ s/, $//;
+  $stmt .= "WHERE username=?;";
+  my $sth = $dbHandle->prepare($stmt);
+  my @options = ();
+  for my $entry (@keys) {
+    push(@options, $recordInfo->{$entry});
+  }
 
+  if($sth->execute(@options,$uname) == -1) {
+    $err++;
+  }
+  return $err;
 }
 
 #delete a row from the a table
