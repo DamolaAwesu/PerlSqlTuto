@@ -1,4 +1,5 @@
 package Person;
+our $VERSION = 'v1.0.0';
 
 use strict;
 use warnings;
@@ -13,20 +14,96 @@ use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 @EXPORT = qw(fromSchemaDB toSchemaDB);
 
-#create constructor
+
+=head1 NAME
+
+Person - Class for specifying and creating employees
+
+=head1 SYNOPSIS
+
+  Constructor
+    $self                 = new(%attr);
+
+  Methods
+    $name               = $self->name();
+    $name               = $self->name($value);
+
+    $username           = $self->username();
+
+    $phone              = $self->phone();
+    $phone              = $self->phone($value);
+
+    $entryDate          = $self->entryDate();
+    $entryDate          = $self->entryDate($value);
+
+    $self->info();
+        
+  Common Functions
+    $self               = fromSchemaDB($dbHash);
+    $dbHash             = toSchemaDB($self);
+
+I<This synopsis lists major methods and parameters.>
+
+=cut
+
+=head1 DESCRIPTION
+
+The Person class is a simple class for describing employees in my OOP Perl project
+
+=head2 Conventions
+
+  $self         Person object
+
+  $retVal       General return value
+
+  %attr         Hash containing attributes of the object
+
+  $value        single attribute value
+
+=head2 Usage
+
+To use Person,
+
+first you need to load the Person package:
+
+  C<use Person::Person>;
+
+C<use strict;> is not required but is strongly recommended.
+
+Then you need to create a L<new|/new> Person object:
+
+  $self = Person->new(%attr);
+
+=head2 Class Methods
+
+This section provides a description of all methods available for use
+
+=cut
+
+=head3 new
+
+  Parameters  : $class : Person class (passed in automatically by Perl)
+                %attr  : hash containing person details
+
+  Return      : $self   : new Person object
+
+  Description : Person class constructor - create new Person object
+
+=cut
+
 sub new {
   #new receives the string on the left side of the arrow operator in the call as the first parameter e.g Person->new becomes new("Person")
-  my ($class, %args) = @_;
+  my ($class, %attr) = @_;
   #create anonymous hash reference to contain current object being instantiated
   my $self = {};
   #add parameter checking directly in constructor
-  $self->{name} = $args{name} if defined $args{name} and $args{name} ne "";
-  $self->{email} = createEmail($args{name}) if defined $args{name} and $args{name} ne "";
-  $self->{username} = generateUsername($args{name}) if defined $args{name} and $args{name} ne "";
-  $self->{startDate} = $args{startDate} if defined $args{startDate} and blessed $args{startDate} and $args{startDate}->isa('DateTime');
-  $self->{position} = $args{position} if defined $args{position} and blessed $args{position} and $args{position}->isa('JobRole');
-  $self->{phone} = $args{phone} if defined $args{phone} and $args{phone} =~ m/^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/;
-  $self->{salary} = $args{salary} if defined $args{salary};
+  $self->{name} = $attr{name} if defined $attr{name} and $attr{name} ne "";
+  $self->{email} = createEmail($attr{name}) if defined $attr{name} and $attr{name} ne "";
+  $self->{username} = generateUsername($attr{name}) if defined $attr{name} and $attr{name} ne "";
+  $self->{startDate} = $attr{startDate} if defined $attr{startDate} and blessed $attr{startDate} and $attr{startDate}->isa('DateTime');
+  $self->{position} = $attr{position} if defined $attr{position} and blessed $attr{position} and $attr{position}->isa('JobRole');
+  $self->{phone} = $attr{phone} if defined $attr{phone} and $attr{phone} =~ m/^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/;
+  $self->{salary} = $attr{salary} if defined $attr{salary};
   #link the instance to the class so Perl knows its class
   bless $self, $class;
   #hack to add email and username after blessing
@@ -35,26 +112,55 @@ sub new {
   return $self;
 }
 
-##########################
-# Methods
-##########################
+=head3 name
+
+  Parameters  : $self   : Person object
+                $value  : [optional] name string
+
+  Return      : $name   : person's name
+
+  Description : get/set name of person
+
+=cut
+
 sub name {
   #get params
   my ($self, $value) = @_;
   #if value is specified, act as setter
   if (@_ == 2) {
     $self->{name} = $value;
-    $self->{username} = generateUsername($self) if $self->username ne generateUsername($self) or $self->username eq "";
-    $self->{email} = createEmail($self) if $self->email ne createEmail($self) or $self->email eq "";
+    $self->{username} = generateUsername($self->name) if $self->username ne generateUsername($self->name) or $self->username eq "";
+    $self->{email} = createEmail($self->name) if $self->email ne createEmail($self->name) or $self->email eq "";
   }
   return $self->{name};
 }
+
+=head3 username
+
+  Parameters  : $self   : Person object
+
+  Return      : $uname   : person's username
+
+  Description : get username of person
+
+=cut
 
 sub username {
   my $self = shift;
 
   return $self->{username} if defined $self->{username};
 }
+
+=head3 entryDate
+
+  Parameters  : $self   : Person object
+                $value  : [optional] DateTime object
+
+  Return      : $name   : person's start date
+
+  Description : get/set start date of person
+
+=cut
 
 sub entryDate {
   #get params
@@ -67,10 +173,31 @@ sub entryDate {
   return $self->{startDate} if defined $self->{startDate};
 }
 
+=head3 email
+
+  Parameters  : $self   : Person object
+
+  Return      : $email  : person's email address
+
+  Description : get email address of person
+
+=cut
+
 sub email {
   my $self = shift;
   return $self->{email} if defined $self->{email};
 }
+
+=head3 phone
+
+  Parameters  : $self   : Person object
+                $value  : [optional] phone number
+
+  Return      : $phone  : person's phone number
+
+  Description : get/set phone number of person
+
+=cut
 
 sub phone {
   my ($self, $value) = @_;
@@ -81,6 +208,17 @@ sub phone {
   }
   return $self->{phone} if defined $self->{phone};
 }
+
+=head3 position
+
+  Parameters  : $self       : Person object
+                $value      : [optional] JobRole object
+
+  Return      : $position   : JobRole object
+
+  Description : get/set job role of person
+
+=cut
 
 sub position {
   #get params
@@ -97,6 +235,17 @@ sub position {
   return $self->{position} if defined $self->{position};
 }
 
+=head3 department
+
+  Parameters  : $self         : Person object
+                $value        : [optional] department string
+
+  Return      : $department   : person's department
+
+  Description : get/set department of person
+
+=cut
+
 sub department {
   my ($self, $value) = @_;
 
@@ -105,6 +254,17 @@ sub department {
   }
   return $self->{position}->department if defined $self->{position};
 }
+
+=head3 title
+
+  Parameters  : $self   : Person object
+                $value  : [optional] job title string
+
+  Return      : $title  : person's job title
+
+  Description : get/set title of person
+
+=cut
 
 sub title {
   my ($self, $value) = @_;
@@ -115,9 +275,80 @@ sub title {
   return $self->{position}->title if defined $self->{position}; 
 }
 
-##########################
-# Helper functions
-##########################
+=head3 update
+
+  Parameters  : $self     : Person object
+                $updHash  : reference to hash containing attributes to update
+
+  Return      : None
+
+  Description : update attributes of person (might be deprecated later)
+
+=cut
+
+sub update {
+  my ($self, $updHash) = @_;
+  return if @_ != 2 or not blessed $self;
+  my @keys = keys(%{$updHash});
+
+  for my $entry (@keys) {
+    $self->{$entry} = $updHash->{$entry} if exists $self->{$entry};
+  }
+}
+
+=head3 yearOfEntry
+
+  Parameters  : $self   : Person object
+
+  Return      : $year   : year string
+
+  Description : get start year of person
+
+=cut
+
+sub yearOfEntry {
+  #get params
+  my $self = shift;
+  return $self->{startDate}->year if defined $self->{startDate};
+}
+
+=head3 info
+
+  Parameters  : $self   : Person object
+
+  Return      : $info   : contact detail string
+
+  Description : get person basic info
+
+=cut
+
+sub info {
+  my $self = shift;
+
+  my $info = "Name: ".$self->name."\nUsername: ".$self->username."\nEmail: ".$self->email."\nEntry Date: ".$self->entryDate->dmy('/')."\nPosition: ".$self->position->title."\n";
+
+  return $info;
+}
+
+=head2 Internal Functions
+
+These functions are used to process data and generate some attributes of the Person object that are not directly settable
+
+=cut
+
+=head3 getNames
+
+  Parameters  : $name     : name string
+                $option   : [optional] option to choose if middle name is returned also
+
+  Return      : $first    : person's first name
+                $last     : person's last name
+                $middle   : [optional] person's middle name
+
+  Description : split name of person into first, middle and last
+
+=cut
+
 sub getNames {
   my ($name, $option) = @_;
   my @arr = split(/ /,$name);
@@ -131,6 +362,16 @@ sub getNames {
   return ($first, $last);
 }
 
+=head3 createEmail
+
+  Parameters  : $fullName   : Person object
+
+  Return      : $email      : generated email address
+
+  Description : create email for person
+
+=cut
+
 sub createEmail {
   my $fullName = shift;
   my ($first, $last) = getNames($fullName);
@@ -138,6 +379,16 @@ sub createEmail {
 
   return $email;
 }
+
+=head3 generateUsername
+
+  Parameters  : $fullName   : Person object
+
+  Return      : $uname      : generated username
+
+  Description : create email for person
+
+=cut
 
 sub generateUsername {
   my $fullName = shift;
@@ -147,31 +398,21 @@ sub generateUsername {
   return $uname;
 }
 
-sub yearOfEntry {
-  #get params
-  my $self = shift;
-  return $self->{startDate}->year if defined $self->{startDate};
-}
+=head2 Common Functions
 
-sub info {
-  my $self = shift;
+These functions are used to interact with the database package
 
-  my $info = "Name: ".$self->name."\nUsername: ".$self->username."\nEmail: ".$self->email."\nEntry Date: ".$self->entryDate->dmy('/')."\nPosition: ".$self->position->title."\n";
+=cut
 
-  return $info;
-}
+=head3 fromSchemaDB
 
-sub update {
-  my ($self, $updHash) = @_;
-  return if @_ != 2 or not blessed $self;
-  my @keys = keys(%{$updHash});
+  Parameters  : $dbHash     : reference to a hash containing data from database
 
-  for my $entry (@keys) {
-    $self->{$entry} = $updHash->{$entry} if exists $self->{$entry};
-  }
-  #TODO: complete by adding link to Database::updateRecord function - maybe create a wrapper at app level that will call this function and the DB api also
-  # Penser à faire le même chose pour les functions comme ça - new (addEmployee), deleteRecord (deleteEmployee), deleteTable (deleteOrg), createTable(createOrg) etc
-}
+  Return      : $employee   : new Person object
+
+  Description : convert database record into Person object
+
+=cut
 
 sub fromSchemaDB($) {
   my $dbHash = shift;
@@ -193,6 +434,16 @@ sub fromSchemaDB($) {
   return $employee;
 }
 
+=head3 toSchemaDB
+
+  Parameters  : $employee : Person object
+
+  Return      : $dbHash   : reference to hash containg data to be inserted into database
+
+  Description : convert Person object into database record
+
+=cut
+
 sub toSchemaDB {
   my $self = shift;
 
@@ -212,3 +463,21 @@ sub toSchemaDB {
 }
 
 1;
+
+__END__
+
+=head1 SUPPORT
+
+This module is managed in an open Github repository, L<github.com/DamolaAwesu/PerlSqlTuto|https://github.com/DamolaAwesu/PerlSqlTuto/blob/main/Person/Person.pm>.
+
+=head1 COPYRIGHT
+
+Copyright (c) 2023 Damola Awesu
+
+This module is free software; you can redistribute it and/or modify it under the same terms as Perl itself
+
+=head1 AUTHOR(S)
+
+Person was created and is maintained by Damola Awesu, reachable at B<dammyawesu@gmail.com>
+
+=cut
