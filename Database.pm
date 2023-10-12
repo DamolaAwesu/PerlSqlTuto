@@ -1,5 +1,6 @@
 #!usr/bin/perl
 package Database;
+our $VERSION = 'v1.0.0';
 
 use strict;
 use warnings;
@@ -21,22 +22,74 @@ Database - DB wrapper for SQLite3 in Perl
 
 =head1 SYNOPSIS
 
-$dbh    = connectDB($dataSource, $username, $passkey);
+  $dbh                 = connectDB($dataSource, $username, $password);
 
-$retVal = createTable($dbh, $table, $tableSchema);
+  $retVal              = createTable($dbh, $table, $tableSchema);
+  $retVal              = insertInTable($dbh, $table, \%attr);
+  ($retVal, $attrHash) = getSingleRecord($dbh, $table, $field, $searchToken);
+  ($retVal, $sth)      = getAllRecords($dbh, $table, $searchToken);
+  $retVal              = updateRecord($dbh, $table, $uname, \%attr);
+  $retVal              = deleteRecord($dbh, $table, $uname, $searchToken);
 
-$retVal = insertInTable($dbh, $table, \%attr);
-$retVal = getSingleRecord($dbh, $table, $field, $searchToken);
-$retVal = getAllRecords($dbh, $table, $searchToken);
-$retVal = updateRecord($dbh, $ttable, \%attr);
-$retVal = deleteRecord($dbh, $table, $searchToken);
-
-$retVal = disconnectDB($dbHandle);
+  $retVal              = disconnectDB($dbHandle);
 
 I<This synopsis lists major methods and parameters.>
 
 =cut
 
+=head1 DESCRIPTION
+
+The Database package is a simple wrapper around the DBI module available on CPAN corresponding to needs in my OOP Perl project
+
+=head2 Conventions
+
+  $dbh          Database handle object
+
+  $sth          Statement handle object
+
+  $retVal       General return value
+
+  $table        Database table name
+
+  \%attr        Reference to a hash of attribute values passed to methods
+
+  $searchToken  single attribute value
+
+=head2 Usage
+
+To use Database,
+
+first you need to load the Database package:
+
+C<use Database>;
+
+C<use strict;> is not required but is strongly recommended.
+
+Then you need to L<connect|/connect> to your data source and get a I<handle> for the connection:
+
+  $dbh = Database::connect($datasource, $username, $password);
+
+Generally, you connect only once at program start and L<disconnect|/disconnect> at the end
+
+Once connected, the other methods provided by the Database package are ready to be used by the application
+
+=head2 Methods
+
+This section provides a description of all methods available for use
+
+=cut
+
+=head3 C<connect>
+
+  Parameters  : $datasource : path to database
+                $user       : username
+                $password   : user credential
+
+  Return      : $dbh        : database handle
+
+  Description : connect to database
+
+=cut
 
 sub connect {
   my ($fileName, $user, $password) = @_;
@@ -54,6 +107,18 @@ sub connect {
 
   return $dbh;
 }
+
+=head3 C<createTable>
+
+  Parameters  : $dbh          : database handle
+                $tableName    : name of table
+                $tableSchema  : schema of table to be created
+
+  Returns     : $retVal       : query status
+
+  Description : creates a new table in the database, if it does not already exist, based on the provided schema
+
+=cut
 
 sub createTable {
   my ($dbHandle, $tableName, $tableInfo) = @_;
@@ -78,11 +143,24 @@ sub createTable {
 
 }
 
+=head3 C<insertInTable>
+
+  Parameters      : $dbh        : database handle
+                    $tableName  : name of table to insert into
+                    \%attr      : hash containing data to be inserted
+
+  Returns         : $err        : status of query
+
+  Description     : insert record into table
+
+=cut
+
+#insert a new row into the specified table
 sub insertInTable {
   my $err = 0;
-  my($dbHandle, $tableName, $employeeInfo) = @_;
+  my($dbHandle, $tableName, $recordInfo) = @_;
   my $nbCols = 0;
-  my @keys = keys(%{$employeeInfo});
+  my @keys = keys(%{$recordInfo});
 
   #TODO: check if record already exists using username
 
@@ -101,7 +179,7 @@ sub insertInTable {
   my $sth = $dbHandle->prepare($stmt);
   my @fields = ();
   for my $entry2 (@keys) {
-    push(@fields,$employeeInfo->{$entry2});
+    push(@fields,$recordInfo->{$entry2});
   }
   #run command
   if($sth->execute(@fields) == -1) {
@@ -123,6 +201,20 @@ sub getFieldData {
   #return $sth->fetchrow_hashref;
 }
 
+=head3 C<getSingleRecord>
+
+  Parameters     :  $dbh          : database handle
+                    $tableName    : name of table to read from
+                    $field        : column to filter data
+                    $searchToken  : value to match in filter
+
+  Returns        :  $err          : status of query
+                    $attrHash     : hash containing data in the filtered row
+
+  Description    :  get all data in a single row from the specified table based on the provided filter
+
+=cut
+
 #get single row from table
 sub getSingleRecord {
   my ($dbHandle, $tableName, $field, $searchKey) = @_;
@@ -135,6 +227,18 @@ sub getSingleRecord {
   }
   return ($err,$sth->fetchrow_hashref);
 }
+
+=head3 C<getAllRecords>
+
+  Parameters     :  $dbh          : database handle
+                    $tableName    : name of table to read from
+
+  Returns        :  $err          : status of query
+                    $attrHash     : hash containing all data in the specified table
+
+  Description    :  get all data present in the specified table
+
+=cut
 
 #get all rows from table
 sub getAllRecords {
@@ -149,35 +253,57 @@ sub getAllRecords {
   return ($err,$sth);
 }
 
+=head3 C<updateRecord>
+
+  Parameters     :  $dbh          : database handle
+                    $tableName    : name of table to read from
+                    $uname        : column to filter data
+                    $recordInfo   : values to update
+
+  Returns        :  $err          : status of query
+
+  Description    :  update select data in a record in specified table based on filter provided
+
+=cut
+
+#update a row in the database
 sub updateRecord {
-  my ($dbHandle, $tableName, $uname, $recordInfo) = @_;
+  my ($dbHandle, $tableName, $pKey, $pKeyVal, $recordInfo) = @_;
   my $err = 0;
 
   my @keys = keys(%{$recordInfo});
 
   my $stmt = "UPDATE $tableName SET ";
-  # for my $entry (@keys) {
-  #   $stmt .= $entry." = ".$recordInfo->{$entry}.", ";
-  # }
-  # $stmt =~ s/, $//; #remove trailing comma and space characters
-  # $stmt .= " WHERE username = ".$uname.";";
-  # print "$stmt\n";
+
   for my $entry (@keys) {
     $stmt .= "$entry=?, ";
   }
   $stmt =~ s/, $//;
-  $stmt .= "WHERE username=?;";
+  $stmt .= "WHERE $pKey=?;";
   my $sth = $dbHandle->prepare($stmt);
   my @options = ();
   for my $entry (@keys) {
     push(@options, $recordInfo->{$entry});
   }
 
-  if($sth->execute(@options,$uname) == -1) {
+  if($sth->execute(@options,$pKeyVal) == -1) {
     $err++;
   }
   return $err;
 }
+
+=head3 C<deleteRecord>
+
+  Parameters     :  $dbh          : database handle
+                    $tableName    : name of table to read from
+                    $field        : column to filter data
+                    $value        : value to match in filter
+
+  Returns        :  $err          : status of query
+
+  Description    :  delete a single row from the specified table based on the provided filter
+
+=cut
 
 #delete a row from the a table
 sub deleteRecord {
@@ -193,6 +319,18 @@ sub deleteRecord {
 
   return $err;
 }
+
+=head3 C<deleteRecord>
+
+  Parameters     :  $dbh          : database handle
+                    $tableName    : name of table to read from
+                    $option       : "D" to delete entire table + schema, "T" to only delete records in the table
+
+  Returns        :  $err          : status of query
+
+  Description    :  delete a single row from the specified table based on the provided filter
+
+=cut
 
 #delete a table from the database
 sub deleteTable {
@@ -218,7 +356,17 @@ sub deleteTable {
   return $err;
 }
 
+=head3 C<disconnect>
 
+  Parameters     :  $dbh  : database handle
+
+  Returns        :  None
+
+  Description    :  disconnect from database
+
+=cut
+
+#disconnect from database
 sub disconnect {
   my $dbh = shift;
 
@@ -226,47 +374,22 @@ sub disconnect {
 
 }
 
+1;
 
-=head1 DESCRIPTION
+__END__
 
-The Database package is a simple wrapper around the DBI module available on CPAN corresponding to needs in my OOP Perl project
+=head1 SUPPORT
 
-=head2 Conventions
+This module is managed in an open Github repository, L<github.com/DamolaAwesu/PerlSqlTuto|https://github.com/DamolaAwesu/PerlSqlTuto/blob/main/Database.pm>.
 
-$dbh          Database handle object
-$sth          Statement handle object
-$retVal       General return value
-$table        Database table name
-\%attr        Reference to a hash of attribute values passed to methods
-$searchToken  single attribute value
+=head1 COPYRIGHT
 
-=head2 Usage
+Copyright (c) 2023 Damola Awesu
 
-To use Database,
-first you need to load the Database package:
-  C<use Database>;
-C<use strict;> is not required but is strongly recommended.
-Then you need to L</connect> to your data source and get a I<handle> for the connection:
-  $dbh = Database::connect($datasource, $username, $passkey);
-Generally, you connect only once at program start and disconnect at the end
-Once connected, the other methods provided by the Database package are ready to be used by the application
+This module is free software; you can redistribute it and/or modify it under the same terms as Perl itself
 
-=head2 Methods
+=head1 AUTHOR(S)
 
-This section provides a description of all methods available for use
-
-=head3 C<connect>
-
-=head3 C<createTable>
-
-=head3 C<deleteTable>
-
-=head3 C<insertInTable>
-
-=head3 C<getSingleRecord>
-
-=head3 C<getAllRecords>
+Database was created and is maintained by Damola Awesu, reachable at B<dammyawesu@gmail.com>
 
 =cut
-
-1;
